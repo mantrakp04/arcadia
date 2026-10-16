@@ -6,7 +6,7 @@ const SLIDE_MS = 180;
 const HIDE_DELAY_MS = 120;
 const ARC_IN = springConfig(ARC_PEEK_SPRING);
 
-export function usePeek(enabled: boolean, arc = false) {
+export function usePeek(enabled: boolean, arc = false, held: () => boolean = () => false) {
   const slide = useRef(new Animated.Value(0)).current;
   const [live, setLive] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -26,7 +26,7 @@ export function usePeek(enabled: boolean, arc = false) {
   };
   const hide = () => {
     clearTimeout(hideTimer.current);
-    hideTimer.current = setTimeout(slideOut, HIDE_DELAY_MS);
+    hideTimer.current = setTimeout(() => !held() && slideOut(), HIDE_DELAY_MS);
   };
   useEffect(() => {
     if (enabled) return;

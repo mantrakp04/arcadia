@@ -1,4 +1,4 @@
-import { setTrafficLightsCenter, Surface } from "@ardia/shell";
+import { onWindowEvent, setTrafficLightsCenter, Surface, watchLeftEdge } from "@ardia/shell";
 import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from "react-native";
 import { useShallow } from "zustand/react/shallow";
@@ -32,6 +32,7 @@ AccessibilityInfo.addEventListener("reduceMotionChanged", (on) => (reduceMotion 
 
 const SPRING = springConfig(DOCK_SPRING);
 const STRIP_WIDTH = 8;
+const HOLD_SLACK = 24;
 
 function useSidebarDock(open: boolean, animate: boolean, arc: boolean): Animated.Value {
   const windowId = useWindowId();
@@ -142,7 +143,31 @@ function SidebarDock({
   const theme = useTheme();
   const windowId = useWindowId();
   const moving = useDockMotion((m) => !!m.moving[windowId]);
-  const peek = usePeek(!open && !moving && !fullscreen, arc);
+  const edgeOver = useRef(false);
+  const peek = usePeek(!open && !moving && !fullscreen, arc, () => edgeOver.current);
+  const latestPeek = useRef(peek);
+  latestPeek.current = peek;
+  const holdWidth = PEEK_ORIGIN[0] + width + HOLD_SLACK;
+  const holdHeight = useRef(Infinity);
+  const inHold = (x: number, y: number) => x >= 0 && x < holdWidth && y >= 0 && y < holdHeight.current;
+  const latestInHold = useRef(inHold);
+  latestInHold.current = inHold;
+  const watching = !open && !fullscreen && !moving;
+  useEffect(() => {
+    if (!watching) return;
+    const sub = onWindowEvent((e) => {
+      if (e.type !== "leftEdge" || e.id !== windowId) return;
+      edgeOver.current = e.over;
+      if (e.over) return latestPeek.current.show();
+      if (latestPeek.current.live && !latestInHold.current(e.point[0], e.point[1])) latestPeek.current.hide();
+    });
+    watchLeftEdge(windowId, true);
+    return () => {
+      sub.remove();
+      watchLeftEdge(windowId, false);
+      edgeOver.current = false;
+    };
+  }, [windowId, watching]);
   const peeking = !open && !fullscreen && peek.live;
   useEffect(() => setPeekShown(windowId, peek.live), [windowId, peek.live]);
   if (__DEV__) devPeeks[windowId] = peek;
@@ -166,13 +191,7 @@ function SidebarDock({
   );
 
   const leaveStrip = (e: { nativeEvent: { clientX: number; clientY: number } }) => {
-    const intoPanel = e.nativeEvent.clientX >= STRIP_WIDTH && e.nativeEvent.clientY >= PEEK_ORIGIN[1];
-    if (peek.live && !intoPanel) peek.hide();
-  };
-  const leavePanel = (e: { nativeEvent: { clientX: number; clientY: number } }) => {
-    const x = e.nativeEvent.clientX + PEEK_ORIGIN[0];
-    const y = e.nativeEvent.clientY + PEEK_ORIGIN[1];
-    if (!(x >= 0 && x < STRIP_WIDTH && y >= 0)) peek.hide();
+    if (peek.live && !inHold(e.nativeEvent.clientX, e.nativeEvent.clientY)) peek.hide();
   };
 
   const strip = useRef(false);
@@ -191,6 +210,15 @@ function SidebarDock({
 
   return (
     <>
+      {peeking && (
+        <View
+          pointerEvents="none"
+          onMouseEnter={peek.show}
+          onMouseLeave={peek.hide}
+          onLayout={(e) => (holdHeight.current = e.nativeEvent.layout.height)}
+          style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: holdWidth }}
+        />
+      )}
       {strip.current && (
         <View
           pointerEvents={!open && !fullscreen ? "auto" : "none"}
@@ -207,8 +235,6 @@ function SidebarDock({
       )}
       <Animated.View
         pointerEvents={fullscreen || moving || (!open && !peeking) ? "none" : "auto"}
-        onMouseEnter={peeking ? peek.show : undefined}
-        onMouseLeave={peeking ? leavePanel : undefined}
         style={{
           position: "absolute",
           left: away ? -10_000 : peeking ? PEEK_ORIGIN[0] : 0,
