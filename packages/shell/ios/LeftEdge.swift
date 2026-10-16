@@ -8,6 +8,7 @@ final class LeftEdgeWatcher {
   var pointerOverride: NSPoint?
   private var watched: [String: CGFloat] = [:]
   private var over: Set<String> = []
+  private var unreported: Set<String> = []
   private var monitors: [Any] = []
 
   private static let pointerEvents: NSEvent.EventTypeMask = [
@@ -15,8 +16,8 @@ final class LeftEdgeWatcher {
   ]
 
   func watch(id: String, on: Bool, hold: CGFloat) {
-    over.remove(id)
     watched[id] = on ? max(0, hold) : nil
+    if on { unreported.insert(id) } else { over.remove(id) }
     if watched.isEmpty { return stop() }
     start()
     checkPointer()
@@ -32,10 +33,12 @@ final class LeftEdgeWatcher {
       guard let window = WindowManager.shared.windows[id] else {
         watched[id] = nil
         over.remove(id)
+        unreported.remove(id)
         continue
       }
       let now = isOver(point, of: window, hold: hold, live: live)
-      guard now != over.contains(id) else { continue }
+      let fresh = unreported.remove(id) != nil
+      guard fresh || now != over.contains(id) else { continue }
       if now { over.insert(id) } else { over.remove(id) }
       let frame = window.frame
       emit?("onWindowEvent", ["type": "leftEdge", "id": id, "over": now, "point": [point.x - frame.minX, frame.maxY - point.y]])
@@ -48,7 +51,9 @@ final class LeftEdgeWatcher {
     let frame = window.frame
     guard point.y >= frame.minY, point.y < frame.maxY else { return false }
     if point.x >= frame.minX, point.x < frame.minX + hold {
-      return !live || NSApp.window(withWindowNumber: NSWindow.windowNumber(at: point, belowWindowWithWindowNumber: 0)) != nil
+      guard live else { return true }
+      let hit = NSApp.window(withWindowNumber: NSWindow.windowNumber(at: point, belowWindowWithWindowNumber: 0))
+      return hit === window || hit?.parent === window
     }
     guard point.x < frame.minX, point.x >= max(screen.frame.minX, frame.minX - Self.reach) else { return false }
     guard live else { return true }
@@ -77,6 +82,8 @@ final class LeftEdgeWatcher {
   func reset() {
     watched = [:]
     over = []
+    unreported = []
+    pointerOverride = nil
     stop()
   }
 

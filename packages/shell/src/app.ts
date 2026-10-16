@@ -140,7 +140,7 @@ type AppModule = {
   devSnapshotWindow(windowId: string, path: string, transparent?: boolean): Promise<boolean>;
   devSetPointer(windowId: string, x: number, y: number, on: boolean): Promise<boolean>;
   devSetMouseButtons(pressed: number): Promise<boolean>;
-  devLeftEdgePointer?(windowId: string, x: number, y: number): Promise<boolean>;
+  devLeftEdgePointer?(windowId: string, x: number, y: number, on: boolean): Promise<boolean>;
   devHoverStats(reset: boolean): Promise<{ passes?: number; log?: [string, number, number][]; registered?: number }>;
   devMenuCommand(command: string, arg: string | null): Promise<void>;
   devTypeKeys(windowId: string, text: string, interval: number): Promise<KeyTiming[]>;
@@ -213,8 +213,8 @@ export const devSnapshotWindow = (windowId: string, path: string, transparent = 
 export const devSetPointer = (windowId: string, point: { x: number; y: number } | null) => App.devSetPointer(windowId, point?.x ?? 0, point?.y ?? 0, !!point);
 export const devSetMouseButtons = (pressed: boolean | null) => App.devSetMouseButtons(pressed === null ? -1 : pressed ? 1 : 0);
 export const devHoverStats = (reset = true) => App.devHoverStats(reset);
-export const devLeftEdgePointer = (windowId: string, x: number, y: number) =>
-  App.devLeftEdgePointer?.(windowId, x, y) ?? Promise.resolve(false);
+export const devLeftEdgePointer = (windowId: string, point: { x: number; y: number } | null) =>
+  App.devLeftEdgePointer?.(windowId, point?.x ?? 0, point?.y ?? 0, !!point) ?? Promise.resolve(false);
 export type KeyTiming = { due: number; handled: number; drawn: number };
 export const devTypeKeys = (windowId: string, text: string, interval: number) => App.devTypeKeys(windowId, text, interval);
 export type KeyPress = {

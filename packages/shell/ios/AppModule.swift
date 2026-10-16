@@ -255,8 +255,13 @@ public class AppModule: Module {
       #endif
     }.runOnQueue(.main)
 
-    AsyncFunction("devLeftEdgePointer") { (windowId: String, x: Double, y: Double) -> Bool in
+    AsyncFunction("devLeftEdgePointer") { (windowId: String, x: Double, y: Double, on: Bool) -> Bool in
       #if DEBUG
+      guard on else {
+        LeftEdgeWatcher.shared.pointerOverride = nil
+        LeftEdgeWatcher.shared.checkPointer()
+        return true
+      }
       guard let window = WindowManager.shared.windows[windowId] else { return false }
       LeftEdgeWatcher.shared.pointerOverride = NSPoint(x: window.frame.minX + x, y: window.frame.maxY - y)
       LeftEdgeWatcher.shared.checkPointer()

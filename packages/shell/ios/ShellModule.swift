@@ -169,7 +169,7 @@ public class ShellModule: Module {
       let gone = ObjectIdentifier(self)
       DispatchQueue.main.async {
         WindowManager.shared.runtimeGone(gone)
-        LeftEdgeWatcher.shared.reset()
+        if WindowManager.shared.runtime == nil { LeftEdgeWatcher.shared.reset() }
       }
     }
 
