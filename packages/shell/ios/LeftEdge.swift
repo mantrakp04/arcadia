@@ -2,9 +2,10 @@ import AppKit
 
 final class LeftEdgeWatcher {
   static let shared = LeftEdgeWatcher()
-  static let maxGap: CGFloat = 24
+  static let reach: CGFloat = 24
 
   var emit: ((String, [String: Any]) -> Void)?
+  var pointerOverridden = false
   private var watched: Set<String> = []
   private var over: Set<String> = []
   private var monitors: [Any] = []
@@ -22,17 +23,22 @@ final class LeftEdgeWatcher {
     }
     if watched.isEmpty { return stop() }
     start()
-    check(NSEvent.mouseLocation, occlusion: true)
+    checkPointer()
   }
 
-  func check(_ point: NSPoint, occlusion: Bool) {
+  private func checkPointer() {
+    if pointerOverridden { return }
+    check(NSEvent.mouseLocation, live: true)
+  }
+
+  func check(_ point: NSPoint, live: Bool) {
     for id in watched {
       guard let window = WindowManager.shared.windows[id] else {
         watched.remove(id)
         over.remove(id)
         continue
       }
-      let now = isOverGap(point, of: window, occlusion: occlusion)
+      let now = isBeside(point, of: window, live: live)
       guard now != over.contains(id) else { continue }
       if now { over.insert(id) } else { over.remove(id) }
       let frame = window.frame
@@ -41,26 +47,28 @@ final class LeftEdgeWatcher {
     if watched.isEmpty { stop() }
   }
 
-  private func isOverGap(_ point: NSPoint, of window: NSWindow, occlusion: Bool) -> Bool {
+  private func isBeside(_ point: NSPoint, of window: NSWindow, live: Bool) -> Bool {
     guard window.isVisible, !window.isMiniaturized, !window.styleMask.contains(.fullScreen), let screen = window.screen else { return false }
     let frame = window.frame
-    let gap = frame.minX - screen.frame.minX
-    guard gap > 0, gap <= Self.maxGap, point.x >= screen.frame.minX, point.x < frame.minX,
+    guard point.x < frame.minX, point.x >= max(screen.frame.minX, frame.minX - Self.reach),
           point.y >= frame.minY, point.y < frame.maxY else { return false }
-    guard occlusion else { return true }
+    guard live else { return true }
     let edge = NSPoint(x: frame.minX + 1, y: point.y)
-    return NSWindow.windowNumber(at: edge, belowWindowWithWindowNumber: 0) == window.windowNumber
+    guard NSWindow.windowNumber(at: edge, belowWindowWithWindowNumber: 0) == window.windowNumber else { return false }
+    let under = NSWindow.windowNumber(at: point, belowWindowWithWindowNumber: 0)
+    if under != window.windowNumber, NSApp.window(withWindowNumber: under) != nil { return false }
+    return NSApp.isActive || frame.minX - screen.frame.minX <= Self.reach
   }
 
   private func start() {
     guard monitors.isEmpty else { return }
     if let global = NSEvent.addGlobalMonitorForEvents(matching: Self.pointerEvents, handler: { [weak self] _ in
-      self?.check(NSEvent.mouseLocation, occlusion: true)
+      self?.checkPointer()
     }) {
       monitors.append(global)
     }
     if let local = NSEvent.addLocalMonitorForEvents(matching: Self.pointerEvents, handler: { [weak self] event in
-      self?.check(NSEvent.mouseLocation, occlusion: true)
+      self?.checkPointer()
       return event
     }) {
       monitors.append(local)
