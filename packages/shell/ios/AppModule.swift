@@ -258,8 +258,8 @@ public class AppModule: Module {
     AsyncFunction("devLeftEdgePointer") { (windowId: String, x: Double, y: Double) -> Bool in
       #if DEBUG
       guard let window = WindowManager.shared.windows[windowId] else { return false }
-      LeftEdgeWatcher.shared.pointerOverridden = true
-      LeftEdgeWatcher.shared.check(NSPoint(x: window.frame.minX + x, y: window.frame.maxY - y), live: false)
+      LeftEdgeWatcher.shared.pointerOverride = NSPoint(x: window.frame.minX + x, y: window.frame.maxY - y)
+      LeftEdgeWatcher.shared.checkPointer()
       return true
       #else
       return false

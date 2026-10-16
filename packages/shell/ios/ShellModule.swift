@@ -208,7 +208,9 @@ public class ShellModule: Module {
     AsyncFunction("setTrafficLightsCenter") { (id: String, center: [Double]?) in
       WindowManager.shared.setTrafficLightsCenter(id: id, center: center.flatMap { $0.count == 2 ? NSPoint(x: $0[0], y: $0[1]) : nil })
     }.runOnQueue(.main)
-    AsyncFunction("watchLeftEdge") { (id: String, on: Bool) in LeftEdgeWatcher.shared.watch(id: id, on: on) }.runOnQueue(.main)
+    AsyncFunction("watchLeftEdge") { (id: String, on: Bool, hold: Double) in
+      LeftEdgeWatcher.shared.watch(id: id, on: on, hold: CGFloat(hold))
+    }.runOnQueue(.main)
     AsyncFunction("focusWindow") { (id: String) in WindowManager.shared.focus(id: id) }.runOnQueue(.main)
     AsyncFunction("dragPreviewBegin") { (windowId: String, chip: [Double], grab: [Double]) in
       guard chip.count == 4, grab.count == 2 else { return }

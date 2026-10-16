@@ -5,8 +5,8 @@ final class LeftEdgeWatcher {
   static let reach: CGFloat = 24
 
   var emit: ((String, [String: Any]) -> Void)?
-  var pointerOverridden = false
-  private var watched: Set<String> = []
+  var pointerOverride: NSPoint?
+  private var watched: [String: CGFloat] = [:]
   private var over: Set<String> = []
   private var monitors: [Any] = []
 
@@ -14,31 +14,27 @@ final class LeftEdgeWatcher {
     .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged, .leftMouseUp, .rightMouseUp, .otherMouseUp,
   ]
 
-  func watch(id: String, on: Bool) {
+  func watch(id: String, on: Bool, hold: CGFloat) {
     over.remove(id)
-    if on {
-      watched.insert(id)
-    } else {
-      watched.remove(id)
-    }
+    watched[id] = on ? max(0, hold) : nil
     if watched.isEmpty { return stop() }
     start()
     checkPointer()
   }
 
-  private func checkPointer() {
-    if pointerOverridden { return }
+  func checkPointer() {
+    if let pointerOverride { return check(pointerOverride, live: false) }
     check(NSEvent.mouseLocation, live: true)
   }
 
-  func check(_ point: NSPoint, live: Bool) {
-    for id in watched {
+  private func check(_ point: NSPoint, live: Bool) {
+    for (id, hold) in watched {
       guard let window = WindowManager.shared.windows[id] else {
-        watched.remove(id)
+        watched[id] = nil
         over.remove(id)
         continue
       }
-      let now = isBeside(point, of: window, live: live)
+      let now = isOver(point, of: window, hold: hold, live: live)
       guard now != over.contains(id) else { continue }
       if now { over.insert(id) } else { over.remove(id) }
       let frame = window.frame
@@ -47,11 +43,14 @@ final class LeftEdgeWatcher {
     if watched.isEmpty { stop() }
   }
 
-  private func isBeside(_ point: NSPoint, of window: NSWindow, live: Bool) -> Bool {
+  private func isOver(_ point: NSPoint, of window: NSWindow, hold: CGFloat, live: Bool) -> Bool {
     guard window.isVisible, !window.isMiniaturized, !window.styleMask.contains(.fullScreen), let screen = window.screen else { return false }
     let frame = window.frame
-    guard point.x < frame.minX, point.x >= max(screen.frame.minX, frame.minX - Self.reach),
-          point.y >= frame.minY, point.y < frame.maxY else { return false }
+    guard point.y >= frame.minY, point.y < frame.maxY else { return false }
+    if point.x >= frame.minX, point.x < frame.minX + hold {
+      return !live || NSApp.window(withWindowNumber: NSWindow.windowNumber(at: point, belowWindowWithWindowNumber: 0)) != nil
+    }
+    guard point.x < frame.minX, point.x >= max(screen.frame.minX, frame.minX - Self.reach) else { return false }
     guard live else { return true }
     let edge = NSPoint(x: frame.minX + 1, y: point.y)
     guard NSWindow.windowNumber(at: edge, belowWindowWithWindowNumber: 0) == window.windowNumber else { return false }
@@ -76,7 +75,7 @@ final class LeftEdgeWatcher {
   }
 
   func reset() {
-    watched = []
+    watched = [:]
     over = []
     stop()
   }

@@ -222,7 +222,7 @@ const Shell = requireNativeModule<{
   closeWindow(id: string): Promise<void>;
   focusWindow(id: string): Promise<void>;
   setTrafficLightsCenter(id: string, center: [number, number] | null): Promise<void>;
-  watchLeftEdge?(id: string, on: boolean): Promise<void>;
+  watchLeftEdge?(id: string, on: boolean, hold: number): Promise<void>;
   dragPreviewBegin?(windowId: string, chip: Rect4, grab: [number, number]): Promise<void>;
   dragPreviewPage?(base64: string, frame: Rect4): Promise<void>;
   dragPreviewUpdate?(shape: DragPreviewShape, point: [number, number]): Promise<void>;
@@ -272,7 +272,7 @@ export const focusWindow = (id: string) => Shell.focusWindow(id);
 export const setWindowTitle = (id: string, title: string) => Shell.setWindowTitle(id, title);
 export const setTrafficLightsCenter = (id: string, center: [number, number] | null) =>
   Shell.setTrafficLightsCenter(id, center);
-export const watchLeftEdge = (id: string, on: boolean) => void Shell.watchLeftEdge?.(id, on);
+export const watchLeftEdge = (id: string, on: boolean, hold = 0) => void Shell.watchLeftEdge?.(id, on, hold);
 type Rect4 = [number, number, number, number];
 export type DragPreviewShape = "hidden" | "pill" | "card";
 export const dragPreview = {

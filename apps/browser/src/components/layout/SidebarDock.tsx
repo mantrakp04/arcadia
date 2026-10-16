@@ -150,25 +150,24 @@ function SidebarDock({
   const holdWidth = PEEK_ORIGIN[0] + width + HOLD_SLACK;
   const holdHeight = useRef(Infinity);
   const inHold = (x: number, y: number) => x >= 0 && x < holdWidth && y >= 0 && y < holdHeight.current;
-  const latestInHold = useRef(inHold);
-  latestInHold.current = inHold;
+  const peeking = !open && !fullscreen && peek.live;
   const watching = !open && !fullscreen && !moving;
+  const nativeHold = peeking ? holdWidth : 0;
   useEffect(() => {
     if (!watching) return;
     const sub = onWindowEvent((e) => {
       if (e.type !== "leftEdge" || e.id !== windowId) return;
       edgeOver.current = e.over;
-      if (e.over) return latestPeek.current.show();
-      if (latestPeek.current.live && !latestInHold.current(e.point[0], e.point[1])) latestPeek.current.hide();
+      if (e.over) latestPeek.current.show();
+      else latestPeek.current.hide();
     });
-    watchLeftEdge(windowId, true);
+    watchLeftEdge(windowId, true, nativeHold);
     return () => {
       sub.remove();
       watchLeftEdge(windowId, false);
       edgeOver.current = false;
     };
-  }, [windowId, watching]);
-  const peeking = !open && !fullscreen && peek.live;
+  }, [windowId, watching, nativeHold]);
   useEffect(() => setPeekShown(windowId, peek.live), [windowId, peek.live]);
   if (__DEV__) devPeeks[windowId] = peek;
   useEffect(() => () => setPeekShown(windowId, false), [windowId]);
