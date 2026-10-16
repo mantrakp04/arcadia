@@ -2,6 +2,9 @@
   "name": "ardia",
   "private": true,
   "packageManager": "pnpm@11.1.3",
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "dev": "turbo run dev --filter=@ardia/browser",
     "macos": "pnpm --filter @ardia/browser macos",

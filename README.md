@@ -113,7 +113,7 @@ packages/
 
 ## Run it
 
-Requires Xcode 26+, CocoaPods, Node 22+, pnpm 11.
+Requires Xcode 26+, CocoaPods, Node 22.13+ (pinned in `.nvmrc`), pnpm 11.
 
 ```bash
 pnpm install
